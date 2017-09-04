@@ -11,44 +11,37 @@ void process_file(const std::string &filename);
 
 class CFileCheck {
  public:
-  CFileCheck() {
-    only_filename_      = false;
-    check_extra_space_  = false;
-    check_tabs_         = false;
-    check_blanks_       = false;
-    check_dups_         = false;
-    check_length_       = 0;
-    check_init_spacing_ = false;
-    check_misc_         = false;
-  }
+  CFileCheck() { }
 
   ACCESSOR(OnlyFileName    , bool, only_filename)
   ACCESSOR(CheckExtraSpace , bool, check_extra_space)
   ACCESSOR(CheckTabs       , bool, check_tabs)
   ACCESSOR(CheckBlanks     , bool, check_blanks)
-  ACCESSOR(CheckDups       , int , check_dups)
+  ACCESSOR(CheckDups       , bool, check_dups)
   ACCESSOR(CheckLength     , int , check_length)
   ACCESSOR(CheckInitSpacing, bool, check_init_spacing)
   ACCESSOR(CheckEqualsAlign, bool, check_equals_align)
-  ACCESSOR(CheckMisc       , bool, check_misc)
+  ACCESSOR(CheckSemiColon  , bool, check_semi_colon)
+  ACCESSOR(CheckKeywords   , bool, check_keywords)
 
   void processFile(const std::string &filename);
 
   bool error(const std::string &msg, const std::string &detail="");
 
  private:
-  bool                   only_filename_;
-  bool                   check_extra_space_;
-  bool                   check_tabs_;
-  bool                   check_blanks_;
-  int                    check_dups_;
-  int                    check_length_;
-  bool                   check_init_spacing_;
-  bool                   check_equals_align_;
-  bool                   check_misc_;
+  bool                   only_filename_ { false };
+  bool                   check_extra_space_ { false };
+  bool                   check_tabs_ { false };
+  bool                   check_blanks_ { false };
+  bool                   check_dups_ { false };
+  int                    check_length_ { 0 };
+  bool                   check_init_spacing_ { false };
+  bool                   check_equals_align_ { false };
+  bool                   check_semi_colon_ { false };
+  bool                   check_keywords_ { false };
   std::string            filename_;
-  uint                   line_num_;
-  std::string::size_type last_eq_;
+  uint                   line_num_ { 0 };
+  std::string::size_type last_eq_ { std::string::npos };
 };
 
 int
@@ -62,7 +55,8 @@ main(int argc, char **argv)
   int  check_length       = 0;
   bool check_init_spacing = false;
   bool check_equals_align = false;
-  bool check_misc         = false;
+  bool check_semi_colon   = false;
+  bool check_keywords     = false;
 
   std::vector<std::string> filenames;
 
@@ -83,8 +77,10 @@ main(int argc, char **argv)
         check_init_spacing = true;
       else if (argv[i][1] == 'q')
         check_equals_align = true;
-      else if (argv[i][1] == 'm')
-        check_misc = true;
+      else if (argv[i][1] == 'S')
+        check_semi_colon = true;
+      else if (argv[i][1] == 'k')
+        check_keywords = true;
       else if (argv[i][1] == 'a') {
         check_extra_space  = true;
         check_tabs         = true;
@@ -93,10 +89,11 @@ main(int argc, char **argv)
         check_length       = LINE_LEN;
         check_init_spacing = true;
         check_equals_align = true;
-        check_misc         = true;
+        check_semi_colon   = true;
+        check_keywords     = true;
       }
       else if (argv[i][1] == 'h') {
-        std::cerr << "CFileCheck -f|-s|-t|-b|-d|-l|-i|-m|-a" << std::endl;
+        std::cerr << "CFileCheck -f|-s|-t|-b|-d|-l|-i|-q|-S|-k|-a" << std::endl;
         exit(1);
       }
       else
@@ -113,7 +110,8 @@ main(int argc, char **argv)
       ! check_length       &&
       ! check_init_spacing &&
       ! check_equals_align &&
-      ! check_misc) {
+      ! check_semi_colon   &&
+      ! check_keywords) {
     check_extra_space  = true;
     check_tabs         = true;
     check_blanks       = true;
@@ -121,7 +119,8 @@ main(int argc, char **argv)
     check_length       = LINE_LEN;
     check_init_spacing = false;
     check_equals_align = false;
-    check_misc         = true;
+    check_semi_colon   = false;
+    check_keywords     = true;
   }
 
   CFileCheck check;
@@ -134,7 +133,8 @@ main(int argc, char **argv)
   check.setCheckLength     (check_length);
   check.setCheckInitSpacing(check_init_spacing);
   check.setCheckEqualsAlign(check_equals_align);
-  check.setCheckMisc       (check_misc);
+  check.setCheckSemiColon  (check_semi_colon);
+  check.setCheckKeywords   (check_keywords);
 
   int num_filenames = filenames.size();
 
@@ -294,12 +294,14 @@ processFile(const std::string &filename)
       last_eq_ = p;
     }
 
-    if (getCheckMisc()) {
+    if (getCheckSemiColon()) {
       if (line.find(";;") != std::string::npos) {
         if (error("Double semi-colon"))
           break;
       }
+    }
 
+    if (getCheckKeywords()) {
       const char *keywords[] = {
         "if",
         "do",
