@@ -159,7 +159,8 @@ processFile(const std::string &filename)
 
   std::string line, sline, last_line, last_sline, detail;
 
-  int num_blank = 0;
+  int  num_blank = 0;
+  bool end_block = false;
 
   while (file.readLine(line)) {
     sline = CStrUtil::stripSpaces(line);
@@ -181,6 +182,8 @@ processFile(const std::string &filename)
     }
 
     if (getCheckBlanks()) {
+      int len = line.size();
+
       if (sline.size() == 0) {
         ++num_blank;
 
@@ -191,6 +194,24 @@ processFile(const std::string &filename)
       }
       else
         num_blank = 0;
+
+      if (end_block) {
+        if (sline.size() != 0) {
+          if (error("Block without spacer line"))
+            break;
+        }
+
+        end_block = false;
+      }
+
+#if 0
+      if ((len > 0 && line[0] == '}') ||
+          (line.rfind("};") != std::string::npos))
+        end_block = true;
+#else
+      if (len > 0 && line[0] == '}')
+        end_block = true;
+#endif
     }
 
     if (getCheckDups() && last_sline != "" && sline.size() > 2) {
