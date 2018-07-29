@@ -23,25 +23,27 @@ class CFileCheck {
   ACCESSOR(CheckEqualsAlign, bool, check_equals_align)
   ACCESSOR(CheckSemiColon  , bool, check_semi_colon)
   ACCESSOR(CheckKeywords   , bool, check_keywords)
+  ACCESSOR(CheckBlockSpace , bool, check_block_space)
 
   void processFile(const std::string &filename);
 
   bool error(const std::string &msg, const std::string &detail="");
 
  private:
-  bool                   only_filename_ { false };
-  bool                   check_extra_space_ { false };
-  bool                   check_tabs_ { false };
-  bool                   check_blanks_ { false };
-  bool                   check_dups_ { false };
-  int                    check_length_ { 0 };
+  bool                   only_filename_      { false };
+  bool                   check_extra_space_  { false };
+  bool                   check_tabs_         { false };
+  bool                   check_blanks_       { false };
+  bool                   check_dups_         { false };
+  int                    check_length_       { 0 };
   bool                   check_init_spacing_ { false };
   bool                   check_equals_align_ { false };
-  bool                   check_semi_colon_ { false };
-  bool                   check_keywords_ { false };
+  bool                   check_semi_colon_   { false };
+  bool                   check_keywords_     { false };
+  bool                   check_block_space_  { false };
   std::string            filename_;
-  uint                   line_num_ { 0 };
-  std::string::size_type last_eq_ { std::string::npos };
+  uint                   line_num_           { 0 };
+  std::string::size_type last_eq_            { std::string::npos };
 };
 
 int
@@ -57,6 +59,7 @@ main(int argc, char **argv)
   bool check_equals_align = false;
   bool check_semi_colon   = false;
   bool check_keywords     = false;
+  bool check_block_space  = false;
 
   std::vector<std::string> filenames;
 
@@ -81,6 +84,8 @@ main(int argc, char **argv)
         check_semi_colon = true;
       else if (argv[i][1] == 'k')
         check_keywords = true;
+      else if (argv[i][1] == 'S')
+        check_block_space = true;
       else if (argv[i][1] == 'a') {
         check_extra_space  = true;
         check_tabs         = true;
@@ -91,6 +96,7 @@ main(int argc, char **argv)
         check_equals_align = true;
         check_semi_colon   = true;
         check_keywords     = true;
+        check_block_space  = true;
       }
       else if (argv[i][1] == 'h') {
         std::cerr << "CFileCheck -f|-s|-t|-b|-d|-l|-i|-q|-S|-k|-a" << std::endl;
@@ -111,7 +117,8 @@ main(int argc, char **argv)
       ! check_init_spacing &&
       ! check_equals_align &&
       ! check_semi_colon   &&
-      ! check_keywords) {
+      ! check_keywords     &&
+      ! check_block_space) {
     check_extra_space  = true;
     check_tabs         = true;
     check_blanks       = true;
@@ -119,8 +126,9 @@ main(int argc, char **argv)
     check_length       = LINE_LEN;
     check_init_spacing = false;
     check_equals_align = false;
-    check_semi_colon   = false;
+    check_semi_colon   = true;
     check_keywords     = true;
+    check_block_space  = false;
   }
 
   CFileCheck check;
@@ -135,6 +143,7 @@ main(int argc, char **argv)
   check.setCheckEqualsAlign(check_equals_align);
   check.setCheckSemiColon  (check_semi_colon);
   check.setCheckKeywords   (check_keywords);
+  check.setCheckBlockSpace (check_block_space);
 
   int num_filenames = filenames.size();
 
@@ -197,8 +206,10 @@ processFile(const std::string &filename)
 
       if (end_block) {
         if (sline.size() != 0) {
-          if (error("Block without spacer line"))
-            break;
+          if (getCheckBlockSpace()) {
+            if (error("Block without spacer line"))
+              break;
+          }
         }
 
         end_block = false;
@@ -317,8 +328,10 @@ processFile(const std::string &filename)
 
     if (getCheckSemiColon()) {
       if (line.find(";;") != std::string::npos) {
-        if (error("Double semi-colon"))
-          break;
+        if (line.find("(;;)") == std::string::npos) {
+          if (error("Double semi-colon"))
+            break;
+        }
       }
     }
 
