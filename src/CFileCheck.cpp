@@ -128,7 +128,8 @@ main(int argc, char **argv)
     check_equals_align = false;
     check_semi_colon   = true;
     check_keywords     = true;
-    check_block_space  = false;
+//  check_block_space  = false;
+    check_block_space  = true;
   }
 
   CFileCheck check;
@@ -168,8 +169,9 @@ processFile(const std::string &filename)
 
   std::string line, sline, last_line, last_sline, detail;
 
-  int  num_blank = 0;
-  bool end_block = false;
+  int  num_blank   = 0;
+  bool end_block   = false;
+  bool start_block = false;
 
   while (file.readLine(line)) {
     sline = CStrUtil::stripSpaces(line);
@@ -204,10 +206,11 @@ processFile(const std::string &filename)
       else
         num_blank = 0;
 
+      // last line was end block
       if (end_block) {
         if (sline.size() != 0) {
-          if (getCheckBlockSpace()) {
-            if (error("Block without spacer line"))
+          if (getCheckBlockSpace() && sline[0] != '#') {
+            if (error("End block without spacer line"))
               break;
           }
         }
@@ -215,13 +218,29 @@ processFile(const std::string &filename)
         end_block = false;
       }
 
+      // last line was start block
+      if (start_block) {
+        if (sline.size() == 0) {
+          if (getCheckBlockSpace()) {
+            if (error("Start block with spacer line"))
+              break;
+          }
+        }
+
+        start_block = false;
+      }
+
 #if 0
       if ((len > 0 && line[0] == '}') ||
           (line.rfind("};") != std::string::npos))
         end_block = true;
 #else
-      if (len > 0 && line[0] == '}')
-        end_block = true;
+      if (len > 0) {
+        if      (line[0] == '}')
+          end_block = true;
+        else if (line[0] == '{')
+          start_block = true;
+      }
 #endif
     }
 
