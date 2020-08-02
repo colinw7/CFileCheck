@@ -22,6 +22,7 @@ class CFileCheck {
   ACCESSOR(CheckInitSpacing, bool, check_init_spacing)
   ACCESSOR(CheckEqualsAlign, bool, check_equals_align)
   ACCESSOR(CheckSemiColon  , bool, check_semi_colon)
+  ACCESSOR(CheckComma      , bool, check_comma)
   ACCESSOR(CheckKeywords   , bool, check_keywords)
   ACCESSOR(CheckBlockSpace , bool, check_block_space)
 
@@ -39,6 +40,7 @@ class CFileCheck {
   bool                   check_init_spacing_ { false };
   bool                   check_equals_align_ { false };
   bool                   check_semi_colon_   { false };
+  bool                   check_comma_        { false };
   bool                   check_keywords_     { false };
   bool                   check_block_space_  { false };
   std::string            filename_;
@@ -58,6 +60,7 @@ main(int argc, char **argv)
   bool check_init_spacing = false;
   bool check_equals_align = false;
   bool check_semi_colon   = false;
+  bool check_comma        = false;
   bool check_keywords     = false;
   bool check_block_space  = false;
 
@@ -82,6 +85,8 @@ main(int argc, char **argv)
         check_equals_align = true;
       else if (argv[i][1] == 'S')
         check_semi_colon = true;
+      else if (argv[i][1] == 'C')
+        check_comma = true;
       else if (argv[i][1] == 'k')
         check_keywords = true;
       else if (argv[i][1] == 'S')
@@ -95,6 +100,7 @@ main(int argc, char **argv)
         check_init_spacing = true;
         check_equals_align = true;
         check_semi_colon   = true;
+        check_comma        = true;
         check_keywords     = true;
         check_block_space  = true;
       }
@@ -117,6 +123,7 @@ main(int argc, char **argv)
       ! check_init_spacing &&
       ! check_equals_align &&
       ! check_semi_colon   &&
+      ! check_comma        &&
       ! check_keywords     &&
       ! check_block_space) {
     check_extra_space  = true;
@@ -127,6 +134,7 @@ main(int argc, char **argv)
     check_init_spacing = false;
     check_equals_align = false;
     check_semi_colon   = true;
+    check_comma        = true;
     check_keywords     = true;
 //  check_block_space  = false;
     check_block_space  = true;
@@ -143,6 +151,7 @@ main(int argc, char **argv)
   check.setCheckInitSpacing(check_init_spacing);
   check.setCheckEqualsAlign(check_equals_align);
   check.setCheckSemiColon  (check_semi_colon);
+  check.setCheckComma      (check_comma);
   check.setCheckKeywords   (check_keywords);
   check.setCheckBlockSpace (check_block_space);
 
@@ -352,6 +361,49 @@ processFile(const std::string &filename)
             break;
         }
       }
+    }
+
+    if (getCheckComma()) {
+      bool error = false;
+
+      bool in_dquote = false;
+      bool in_squote = false;
+
+      uint len = line.size();
+
+      for (uint i = 0; i < len; ++i) {
+        auto c = line[i];
+
+        if (in_dquote) {
+          if      (c == '\\')
+            ++i;
+          else if (c == '"')
+            in_dquote = false;
+        }
+        else if (in_squote) {
+          if      (c == '\\')
+            ++i;
+          else if (c == '\'')
+            in_squote = false;
+        }
+        else {
+          if (c == ',') {
+            ++i;
+
+            if (i < len && ! isspace(line[i])) {
+              error = this->error("Comma with no space");
+              break;
+            }
+          }
+          else if (c == '"')
+            in_dquote = true;
+          else if (c == '\'')
+            in_squote = true;
+        }
+      }
+
+      if (error)
+        break;
     }
 
     if (getCheckKeywords()) {
