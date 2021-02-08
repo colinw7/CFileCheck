@@ -387,7 +387,15 @@ processFile(const std::string &filename)
             in_squote = false;
         }
         else {
-          if (c == ',') {
+          if      (c == '|') {
+            ++i;
+
+            if (i < len && line[i] != c && line[i] != '=' && ! isspace(line[i])) {
+              error = this->error("or with no space");
+              break;
+            }
+          }
+          else if (c == ',') {
             ++i;
 
             if (i < len && ! isspace(line[i])) {
