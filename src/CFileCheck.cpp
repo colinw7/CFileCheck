@@ -25,6 +25,7 @@ class CFileCheck {
   ACCESSOR(CheckComma      , bool, check_comma)
   ACCESSOR(CheckKeywords   , bool, check_keywords)
   ACCESSOR(CheckBlockSpace , bool, check_block_space)
+  ACCESSOR(CheckJoin       , bool, check_join)
 
   void processFile(const std::string &filename);
 
@@ -43,6 +44,7 @@ class CFileCheck {
   bool                   check_comma_        { false };
   bool                   check_keywords_     { false };
   bool                   check_block_space_  { false };
+  bool                   check_join_         { false };
   std::string            filename_;
   uint                   line_num_           { 0 };
   std::string::size_type last_eq_            { std::string::npos };
@@ -63,6 +65,7 @@ main(int argc, char **argv)
   bool check_comma        = false;
   bool check_keywords     = false;
   bool check_block_space  = false;
+  bool check_join         = false;
 
   std::vector<std::string> filenames;
 
@@ -91,6 +94,8 @@ main(int argc, char **argv)
         check_keywords = true;
       else if (argv[i][1] == 'S')
         check_block_space = true;
+      else if (argv[i][1] == 'J')
+        check_join = true;
       else if (argv[i][1] == 'a') {
         check_extra_space  = true;
         check_tabs         = true;
@@ -103,9 +108,10 @@ main(int argc, char **argv)
         check_comma        = true;
         check_keywords     = true;
         check_block_space  = true;
+        check_join         = true;
       }
       else if (argv[i][1] == 'h') {
-        std::cerr << "CFileCheck -f|-s|-t|-b|-d|-l|-i|-q|-S|-k|-a" << std::endl;
+        std::cerr << "CFileCheck -f|-s|-t|-b|-d|-l|-i|-q|-S|-k|-a|-J" << std::endl;
         exit(1);
       }
       else
@@ -125,7 +131,8 @@ main(int argc, char **argv)
       ! check_semi_colon   &&
       ! check_comma        &&
       ! check_keywords     &&
-      ! check_block_space) {
+      ! check_block_space  &&
+      ! check_join) {
     check_extra_space  = true;
     check_tabs         = true;
     check_blanks       = true;
@@ -138,6 +145,7 @@ main(int argc, char **argv)
     check_keywords     = true;
 //  check_block_space  = false;
     check_block_space  = true;
+    check_join         = false;
   }
 
   CFileCheck check;
@@ -154,6 +162,7 @@ main(int argc, char **argv)
   check.setCheckComma      (check_comma);
   check.setCheckKeywords   (check_keywords);
   check.setCheckBlockSpace (check_block_space);
+  check.setCheckJoin       (check_join);
 
   int num_filenames = filenames.size();
 
@@ -186,7 +195,7 @@ processFile(const std::string &filename)
     sline = CStrUtil::stripSpaces(line);
 
     if (getCheckExtraSpace()) {
-      size_t len = line.size();
+      auto len = line.size();
 
       if (len > 0 && isspace(line[len - 1])) {
         if (error("Extra Space"))
@@ -202,7 +211,7 @@ processFile(const std::string &filename)
     }
 
     if (getCheckBlanks()) {
-      int len = line.size();
+      auto len = line.size();
 
       if (sline.size() == 0) {
         ++num_blank;
@@ -261,9 +270,9 @@ processFile(const std::string &filename)
     }
 
     if (getCheckLength()) {
-      int len = line.size();
+      auto len = line.size();
 
-      if (len > getCheckLength()) {
+      if (int(len) > getCheckLength()) {
         detail = CStrUtil::strprintf("%d > %d", len, getCheckLength());
 
         if (error("Too long", detail))
@@ -272,22 +281,22 @@ processFile(const std::string &filename)
     }
 
     if (getCheckInitSpacing()) {
-      uint num = 0;
-      uint len = line.size();
+      int  num = 0;
+      auto len = line.size();
 
-      for (uint i = 0; i < len && isspace(line[i]); ++i)
+      for (std::size_t i = 0; i < len && isspace(line[i]); ++i)
         ++num;
 
-      if (num < len && (num % 2) != 0) {
+      if (num < int(len) && (num % 2) != 0) {
         bool skip = false;
 
         if (! skip && (line.find(';') == std::string::npos))
           skip = true;
 
         if (! skip) {
-          char c1 = line[num];
-          char c2 = line[len - 1];
-          char c3 = (len > 1 ? line[len - 2] : '\0');
+          auto c1 = line[num];
+          auto c2 = line[len - 1];
+          auto c3 = (len > 1 ? line[len - 2] : '\0');
 
           if (c1 == '(' && c2 == ';' && c3 == ')')
             skip = true;
@@ -323,7 +332,7 @@ processFile(const std::string &filename)
     }
 
     if (getCheckEqualsAlign()) {
-      std::string::size_type p = line.find('=');
+      auto p = line.find('=');
 
       if (p != std::string::npos) {
         if      (line[p + 1] == '=')
@@ -369,7 +378,7 @@ processFile(const std::string &filename)
       bool in_dquote = false;
       bool in_squote = false;
 
-      uint len = line.size();
+      auto len = line.size();
 
       for (uint i = 0; i < len; ++i) {
         auto c = line[i];
@@ -437,6 +446,43 @@ processFile(const std::string &filename)
         if (pos != std::string::npos) {
           if (error("keyword " + std::string(keywords[i]) + " used as a function"))
             break;
+        }
+      }
+    }
+
+    if (getCheckJoin()) {
+      if (last_line.length() + line.length() < LINE_LEN) {
+        if (last_sline.length() && sline.length()) {
+          auto c1s = last_sline[0];
+          auto c1e = last_sline[last_sline.size() - 1];
+          auto c2s = sline[0];
+          auto c2e = sline[sline.size() - 1];
+
+          auto isComment = [](const std::string &line) {
+            return (line[0] == '/' && line[1] == '/');
+          };
+
+          auto canJoin = [&]() {
+            if (c1s == '#' || c2s == '#')
+              return false;
+
+            if (isComment(last_sline) || isComment(sline))
+              return false;
+
+            if (c1e == '{' || c1e == '}' || c1e == ')' || c1e == ':' || c1e == ';' || c1e == '*')
+              return false;
+
+            if (c2s == '{' || c2e == ':')
+              return false;
+
+            if (last_sline == "else" || last_sline == "void")
+              return false;
+
+            return true;
+          };
+
+          if (canJoin())
+            (void) error("Can join line");
         }
       }
     }
