@@ -15,6 +15,7 @@ all: dirs $(BIN_DIR)/CFileCheck
 
 dirs:
 	@if [ ! -e ../obj ]; then mkdir ../obj; fi
+	@if [ ! -e ../lib ]; then mkdir ../lib; fi
 	@if [ ! -e ../bin ]; then mkdir ../bin; fi
 
 clean:
