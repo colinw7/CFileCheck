@@ -164,9 +164,9 @@ main(int argc, char **argv)
   check.setCheckBlockSpace (check_block_space);
   check.setCheckJoin       (check_join);
 
-  int num_filenames = filenames.size();
+  auto num_filenames = filenames.size();
 
-  for (int i = 0; i < num_filenames; ++i)
+  for (size_t i = 0; i < num_filenames; ++i)
     check.processFile(filenames[i]);
 }
 
@@ -294,7 +294,7 @@ processFile(const std::string &filename)
           skip = true;
 
         if (! skip) {
-          auto c1 = line[num];
+          auto c1 = line[size_t(num)];
           auto c2 = line[len - 1];
           auto c3 = (len > 1 ? line[len - 2] : '\0');
 
@@ -306,7 +306,7 @@ processFile(const std::string &filename)
         }
 
         if (! skip) {
-          uint len1 = last_sline.size();
+          uint len1 = uint(last_sline.size());
 
           if (len1 > 0 &&
               (last_sline[len1 - 1] == ',' ||
