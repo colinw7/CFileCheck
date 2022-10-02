@@ -111,11 +111,26 @@ main(int argc, char **argv)
         check_join         = true;
       }
       else if (argv[i][1] == 'h') {
-        std::cerr << "CFileCheck -f|-s|-t|-b|-d|-l|-i|-q|-S|-k|-a|-J" << std::endl;
+        std::cerr << "CFileCheck -f|-s|-t|-b|-d|-l<len>|-i|-q|-S|-k|-a|-J\n";
+        std::cerr << "\n";
+        std::cerr << " -f      : only filename\n";
+        std::cerr << " -s      : check extra space\n";
+        std::cerr << " -t      : check tabs\n";
+        std::cerr << " -b      : check blanks\n";
+        std::cerr << " -d      : check duplicates\n";
+        std::cerr << " -l<len> : check length <len>\n";
+        std::cerr << " -i      : check init spacing\n";
+        std::cerr << " -q      : check equals align\n";
+        std::cerr << " -S      : check semi colon\n";
+        std::cerr << " -C      : check comma\n";
+        std::cerr << " -k      : check keywords\n";
+        std::cerr << " -S      : check block space\n";
+        std::cerr << " -J      : check join\n";
+        std::cerr << " -a      : check all\n";
         exit(1);
       }
       else
-        std::cerr << "Invalid Option " << argv[i] << std::endl;
+        std::cerr << "Invalid Option " << argv[i] << "\n";
     }
     else
       filenames.push_back(argv[i]);
@@ -181,7 +196,7 @@ processFile(const std::string &filename)
   CFile file(filename_);
 
   if (! file.exists() || ! file.isRegular()) {
-    std::cerr << "File '" << filename_ << "' does not exists" << std::endl;
+    std::cerr << "File '" << filename_ << "' does not exists\n";
     return;
   }
 
@@ -458,8 +473,8 @@ processFile(const std::string &filename)
           auto c2s = sline[0];
           auto c2e = sline[sline.size() - 1];
 
-          auto isComment = [](const std::string &line) {
-            return (line[0] == '/' && line[1] == '/');
+          auto isComment = [](const std::string &line1) {
+            return (line1[0] == '/' && line1[1] == '/');
           };
 
           auto canJoin = [&]() {
@@ -510,12 +525,12 @@ error(const std::string &msg, const std::string &detail)
     if (detail != "")
       std::cout << " [" << detail << "]";
 
-    std::cout << std::endl;
+    std::cout << "\n";
 
     return false;
   }
   else {
-    std::cout << filename_ << std::endl;
+    std::cout << filename_ << "\n";
 
     return true;
   }
